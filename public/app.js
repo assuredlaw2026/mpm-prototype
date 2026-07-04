@@ -55,10 +55,12 @@ window.addEventListener('popstate', render);
 
 function render() {
   const path = location.pathname;
-  const doc = document.getElementById('docket');
-  if (path.startsWith('/inspect/')) { doc.textContent = 'Secure tenant link'; return renderTenant(path.split('/inspect/')[1]); }
-  if (path === '/app') { doc.textContent = 'Owner dashboard'; return renderConsole(); }
-  doc.textContent = '';
+  if (path.startsWith('/inspect/')) { return renderTenant(path.split('/inspect/')[1]); }
+  if (path === '/login') { window.scrollTo(0, 0); return renderLogin(); }
+  if (path === '/app') {
+    if (!S.accountId) { history.replaceState({}, '', '/login'); return renderLogin(); }
+    return renderConsole();
+  }
   const pages = {
     '/services/property-inspections': renderSvcInspections,
     '/services/default-notices': renderSvcNotices,
@@ -87,7 +89,7 @@ function ctaBand(title, sub, note) {
   </div>`;
 }
 function wireCtas() {
-  root.querySelectorAll('[data-cta="start"]').forEach(b => b.addEventListener('click', () => go('/app')));
+  root.querySelectorAll('[data-cta="start"]').forEach(b => b.addEventListener('click', () => go(S.accountId ? '/app' : '/login')));
 }
 
 function renderSvcInspections() {
@@ -303,6 +305,53 @@ function renderContact() {
   <p class="finehelp" style="margin-top:14px">Placeholders shown. Real contact details will be published at launch.</p>`;
 }
 
+/* ---------------- login ---------------- */
+function renderLogin() {
+  if (S.accountId) {
+    root.innerHTML = `<div class="auth-wrap"><div class="auth-card">
+      <h2 style="margin-bottom:4px">Welcome back</h2>
+      <p class="muted small" style="margin:0 0 16px">Signed in as ${esc(S.accountEmail)}.</p>
+      <div class="row">
+        <button id="toDash">Go to dashboard</button>
+        <button id="signOut" class="btn-ghost">Sign out</button>
+      </div></div></div>`;
+    document.getElementById('toDash').addEventListener('click', () => go('/app'));
+    document.getElementById('signOut').addEventListener('click', () => { reset(); save(); toast('Signed out'); renderLogin(); });
+    return;
+  }
+  root.innerHTML = `
+  <div class="auth-wrap"><div class="auth-card">
+    <h2 style="margin-bottom:4px">Log in</h2>
+    <p class="muted small" style="margin:0 0 14px">Access your properties, inspections, and records.</p>
+    <div class="field"><label>Email</label><input id="liEmail" type="email" placeholder="you@example.com" autocomplete="email"></div>
+    <button id="liBtn" style="width:100%">Log in</button>
+    <div class="finehelp" style="margin-top:10px">Prototype sign-in uses email only. Password login is added before launch.</div>
+    <div class="divider"></div>
+    <h3 style="font-size:15px;margin-bottom:10px">New to MPM? Create a free account.</h3>
+    <div class="field"><label>Your name</label><input id="caName" placeholder="Jordan Vasquez" autocomplete="name"></div>
+    <div class="field"><label>Email</label><input id="caEmail" type="email" placeholder="you@example.com" autocomplete="email"></div>
+    <button id="caBtn" class="btn-green" style="width:100%">Create account</button>
+  </div></div>`;
+  const login = async () => {
+    const email = document.getElementById('liEmail').value.trim();
+    if (!email) return toast('Enter your email', true);
+    const r = await api('POST', '/api/login', { email }, false);
+    if (!r.ok) return toast('No account found with that email. Create one below.', true);
+    S.accountId = r.j.id; S.accountEmail = r.j.email; save(); toast('Signed in'); go('/app');
+  };
+  const create = async () => {
+    const name = document.getElementById('caName').value.trim(), email = document.getElementById('caEmail').value.trim();
+    if (!name || !email) return toast('Name and email are required', true);
+    const r = await api('POST', '/api/accounts', { name, email }, false);
+    if (!r.ok) return toast(r.j.error === 'E_EXISTS' ? 'That email already has an account. Log in above.' : (r.j.message || 'Could not create account'), true);
+    S.accountId = r.j.id; S.accountEmail = email; save(); toast('Account created'); go('/app');
+  };
+  document.getElementById('liBtn').addEventListener('click', login);
+  document.getElementById('caBtn').addEventListener('click', create);
+  document.getElementById('liEmail').addEventListener('keydown', e => { if (e.key === 'Enter') login(); });
+  document.getElementById('caEmail').addEventListener('keydown', e => { if (e.key === 'Enter') create(); });
+}
+
 /* ---------------- home ---------------- */
 function renderHome() {
   root.innerHTML = `
@@ -367,20 +416,11 @@ function renderHome() {
 
   <h2 class="section-h" id="how">How it works</h2>
   <div class="how">
-    ${[['1','Choose a Service','Select the help you need and answer a few questions.','/assets/icons/icon-step-choose-service-home.svg'],
-       ['2','Upload Your Information','Add your details and upload your documents. MPM tells you exactly what is needed.','/assets/icons/icon-step-we-get-to-work-document.svg'],
-       ['3','We Get to Work','MPM works the process and handles the details.','/assets/icons/icon-step-take-next-step-folder.svg'],
-       ['4','Get Your Results','Receive your report, letter, or record packet. The work is done for you while you handle more important things.','/assets/icons/icon-step-get-results-check.svg']]
-      .map(([n,t,d,i]) => `<div class="how-step"><div class="step-top"><span class="num">${n}</span><img class="step-icon" src="${i}" alt=""></div><h4>${t}</h4><p>${d}</p></div>`).join('')}
-  </div>
-
-  <h2 class="section-h">MyPropertyManager in practice</h2>
-  <p class="section-sub">Professional help at the moments that matter, built on decades of hands-on property management.</p>
-  <div class="how">
-    <div class="how-step"><div class="num">1</div><h4>Your eyes on the property</h4><p>Tenant-guided photo and video inspections show you the current condition of your rental, without a site visit.</p></div>
-    <div class="how-step"><div class="num">2</div><h4>Guided workflows</h4><p>Plain-English questions and step-by-step guidance turn a task you dread into a process you can finish.</p></div>
-    <div class="how-step"><div class="num">3</div><h4>You stay in control</h4><p>You review and approve every report, letter, and next step. Nothing goes out without your say-so.</p></div>
-    <div class="how-step"><div class="num">4</div><h4>Records you can use later</h4><p>Every service builds an organized property record, ready whenever you need it.</p></div>
+    ${[['Choose a Service','Select the help you need and answer a few questions.','/assets/icons/icon-step-choose-service-home.svg'],
+       ['Upload Your Information','Add your details and upload your documents. MPM tells you exactly what is needed.','/assets/icons/icon-step-we-get-to-work-document.svg'],
+       ['We Get to Work','MPM works the process and handles the details.','/assets/icons/icon-step-take-next-step-folder.svg'],
+       ['Get Your Results','Receive your report, letter, or record packet. The work is done for you while you handle more important things.','/assets/icons/icon-step-get-results-check.svg']]
+      .map(([t,d,i]) => `<div class="how-step"><img class="step-icon" src="${i}" alt=""><h4>${t}</h4><p>${d}</p></div>`).join('')}
   </div>
 
   <div class="valuestrip">
@@ -391,7 +431,7 @@ function renderHome() {
       .map(([v,i]) => `<div class="value"><span class="icon-tile"><img src="${i}" alt=""></span>${v}</div>`).join('')}
   </div>`;
 
-  root.querySelectorAll('[data-cta="start"]').forEach(b => b.addEventListener('click', () => go('/app')));
+  root.querySelectorAll('[data-cta="start"]').forEach(b => b.addEventListener('click', () => go(S.accountId ? '/app' : '/login')));
   root.querySelector('[data-cta="demo"]')?.addEventListener('click', () => document.getElementById('how').scrollIntoView({ behavior: 'smooth' }));
   root.querySelectorAll('[data-cta="soon"]').forEach(b => b.addEventListener('click', () => toast('This service is coming soon. Property inspections are available now.')));
 }

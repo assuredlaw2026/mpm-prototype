@@ -464,12 +464,17 @@ textarea { min-height: 70px; resize: vertical; }
 }
 
 /* ---------- brand icons (How It Works + value strip) ---------- */
-.step-top { display: flex; align-items: center; gap: 10px; margin-bottom: 12px; }
-.step-top .num { margin-bottom: 0; }
-.step-icon { width: 44px; height: 44px; object-fit: contain; display: block; }
+.step-icon { width: 56px; height: 56px; object-fit: contain; display: block; margin-bottom: 12px; }
 .icon-tile {
   flex: 0 0 auto; width: 44px; height: 44px; border-radius: 11px;
   background: #fff; display: grid; place-items: center;
   box-shadow: 0 1px 2px rgba(11,61,117,.25);
 }
 .icon-tile img { width: 28px; height: 28px; object-fit: contain; display: block; }
+
+/* ---------- login ---------- */
+.auth-wrap { display: flex; justify-content: center; padding: 44px 0 24px; }
+.auth-card {
+  background: #fff; border: 1px solid var(--line); border-radius: var(--r);
+  box-shadow: var(--shadow-card); padding: 28px 26px; width: 100%; max-width: 440px;
+}
