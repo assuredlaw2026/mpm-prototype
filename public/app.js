@@ -37,9 +37,21 @@ function fail(res) { toast((res.j && (res.j.message || res.j.error)) || 'Request
 function go(path) { history.pushState({}, '', path); render(); }
 document.addEventListener('click', (e) => {
   const a = e.target.closest('a[data-nav]');
-  if (a) { e.preventDefault(); go(a.getAttribute('href')); }
+  if (a) { e.preventDefault(); document.querySelector('.dd')?.classList.remove('open'); go(a.getAttribute('href')); }
 });
 window.addEventListener('popstate', render);
+
+// Services dropdown (masthead persists across renders, so wire once)
+(() => {
+  const dd = document.querySelector('.dd'), btn = document.querySelector('.dd-btn');
+  if (!dd || !btn) return;
+  btn.addEventListener('click', (e) => {
+    e.stopPropagation();
+    const open = dd.classList.toggle('open');
+    btn.setAttribute('aria-expanded', String(open));
+  });
+  document.addEventListener('click', () => { dd.classList.remove('open'); btn.setAttribute('aria-expanded', 'false'); });
+})();
 
 function render() {
   const path = location.pathname;
@@ -47,7 +59,248 @@ function render() {
   if (path.startsWith('/inspect/')) { doc.textContent = 'Secure tenant link'; return renderTenant(path.split('/inspect/')[1]); }
   if (path === '/app') { doc.textContent = 'Owner dashboard'; return renderConsole(); }
   doc.textContent = '';
+  const pages = {
+    '/services/property-inspections': renderSvcInspections,
+    '/services/default-notices': renderSvcNotices,
+    '/services/security-deposit': renderSvcDeposit,
+    '/about': renderAbout,
+    '/blog': renderBlog,
+    '/resources': renderResources,
+    '/contact': renderContact,
+  };
+  if (pages[path]) { window.scrollTo(0, 0); return pages[path](); }
   return renderHome();
+}
+
+/* ---------------- marketing pages ---------------- */
+function pageHead(eyebrow, title, lede) {
+  return `<section class="pagehead">
+    <div class="eyebrow">${eyebrow}</div>
+    <h1>${title}</h1>
+    <p class="lede">${lede}</p>
+  </section>`;
+}
+function ctaBand(title, sub, note) {
+  return `<div class="ctaband">
+    <div><h3>${title}</h3><p>${sub}</p>${note ? `<p class="finehelp" style="margin-top:6px">${note}</p>` : ''}</div>
+    <button class="btn-green" data-cta="start">Get Started</button>
+  </div>`;
+}
+function wireCtas() {
+  root.querySelectorAll('[data-cta="start"]').forEach(b => b.addEventListener('click', () => go('/app')));
+}
+
+function renderSvcInspections() {
+  root.innerHTML = `
+  ${pageHead('Services · Property Inspections', 'Know what is happening inside your rental.', 'A tenant-guided photo and video inspection that shows you the current condition of your property, without a site visit, a property manager, or monthly software.')}
+
+  <h2 class="section-h">Why inspections matter</h2>
+  <ul class="ticks">
+    <li>The most expensive problems start small: a slow leak under a sink, a clogged HVAC filter, unreported damage. Regular condition checks are designed to help you catch small problems earlier.</li>
+    <li>Most owners go months or years without seeing inside. Problems compound quietly while rent keeps arriving on time.</li>
+    <li>Lease, insurance, and HOA issues are easier and cheaper to address when they are found early and documented well.</li>
+    <li>A record of condition over time makes move-out decisions cleaner and better supported on both sides.</li>
+  </ul>
+
+  <h2 class="section-h">Why MPM</h2>
+  <div class="grid3">
+    <div class="how-step"><div class="num">1</div><h4>No visit, no scheduling</h4><p>MPM sends your tenant a secure link by text and email. The tenant completes a guided inspection on their phone.</p></div>
+    <div class="how-step"><div class="num">2</div><h4>Guided and complete</h4><p>Room by room prompts with required photos, so key areas like under sinks, HVAC filters, and smoke detectors are not skipped.</p></div>
+    <div class="how-step"><div class="num">3</div><h4>Clear next steps</h4><p>Flagged items come to you for review. You decide: save to the property record, create a maintenance action, or take the next step.</p></div>
+  </div>
+
+  <h2 class="section-h">What you receive</h2>
+  <div class="sample-wrap">
+    <div>
+      <ul class="ticks">
+        <li>A clear inspection report with timestamped photos and video.</li>
+        <li>Tenant certification of the submission.</li>
+        <li>Flagged items with practical next-step options.</li>
+        <li>Everything saved to an organized property record you can export as a Property Record Packet.</li>
+      </ul>
+      <p class="small muted" style="margin-top:14px">Pricing: $75 single inspection, $135 semiannual two-pack, $180 quarterly four-pack, which works out to $45 per inspection and is the best value.</p>
+    </div>
+    <div>
+      <div class="sample-doc">
+        <div class="doc-head"><span class="doc-brand">Inspection Report</span><span class="chip ok">submitted</span></div>
+        <div class="rep-row"><span class="rep-label">Kitchen · under sink</span><span class="ph"></span><span class="chip ok">ok</span></div>
+        <div class="rep-row"><span class="rep-label">HVAC filter</span><span class="ph"></span><span class="chip atty">flagged</span></div>
+        <div class="rep-row"><span class="rep-label">Bathroom · caulk and grout</span><span class="ph"></span><span class="chip ok">ok</span></div>
+        <div class="rep-row"><span class="rep-label">Smoke detector</span><span class="ph"></span><span class="chip ok">ok</span></div>
+        <div class="rep-row"><span class="rep-label">Exterior · landscaping</span><span class="ph"></span><span class="chip ok">ok</span></div>
+      </div>
+      <div class="sample-cap">Illustrative example with sample data.</div>
+    </div>
+  </div>
+
+  ${ctaBand('Ready for eyes on your property?', 'Create an account, add your property, and send the inspection link in minutes.')}`;
+  wireCtas();
+}
+
+function renderSvcNotices() {
+  root.innerHTML = `
+  ${pageHead('Services · Default Notices', 'When a lease issue needs to be in writing.', 'Late rent, unauthorized pets, landscaping neglect, unreported damage. Some issues need a clear, professional letter. MPM guides you through preparing one, and nothing is ever sent without your review and approval.')}
+
+  <h2 class="section-h">Why written notices matter</h2>
+  <ul class="ticks">
+    <li>Lease issues rarely fix themselves. A clear written request is usually the first formal step, and often the only one needed.</li>
+    <li>Verbal warnings become he-said-she-said. A dated, documented letter creates a clean record of what was asked and when.</li>
+    <li>Timing and proof matter. Keeping the letter, the dates, and the delivery record together protects you if the issue escalates.</li>
+    <li>Tone matters too. A professional letter tends to get better results than an angry text message.</li>
+  </ul>
+
+  <h2 class="section-h">Why MPM</h2>
+  <div class="grid3">
+    <div class="how-step"><div class="num">1</div><h4>Guided preparation</h4><p>A short workflow collects the facts, dates, photos, and the lease section involved, so the letter is specific instead of generic.</p></div>
+    <div class="how-step"><div class="num">2</div><h4>You stay in control</h4><p>You review and approve every letter before anything is prepared for delivery. MPM never sends a notice on its own.</p></div>
+    <div class="how-step"><div class="num">3</div><h4>A record you can use later</h4><p>The letter, the evidence, and the delivery details are saved together in your property record. When a situation is disputed or complex, MPM recommends professional review instead of pushing forward.</p></div>
+  </div>
+
+  <h2 class="section-h">What you receive</h2>
+  <div class="sample-wrap">
+    <div>
+      <ul class="ticks">
+        <li>A professional letter prepared from your facts, for your review and approval.</li>
+        <li>Download and, when available, mailing options with proof of mailing kept on file.</li>
+        <li>A timeline entry in your property record tying the issue, the evidence, and the letter together.</li>
+      </ul>
+      <p class="small muted" style="margin-top:14px">Pricing from $15 depending on the letter and delivery options.</p>
+    </div>
+    <div>
+      <div class="sample-doc">
+        <div class="doc-head"><span class="doc-brand">Notice Letter</span><span class="chip neutral">preview</span></div>
+        <div class="doc-line w45"></div>
+        <div class="doc-line w30"></div>
+        <div style="height:10px"></div>
+        <div class="doc-line w95"></div>
+        <div class="doc-line w95"></div>
+        <div class="doc-line w80"></div>
+        <div class="doc-line w95"></div>
+        <div class="doc-line w60"></div>
+        <div class="doc-sig">Owner signature</div>
+      </div>
+      <div class="sample-cap">Illustrative preview only. Actual letters are prepared in your workflow, from your facts, and approved by you.</div>
+    </div>
+  </div>
+
+  ${ctaBand('Be ready before you need it', 'Create your account and your property record will be ready the moment you need a letter.', 'MPM is not a law firm and does not provide legal advice. You author and approve every letter. Complex or disputed situations are routed to professional review.')}`;
+  wireCtas();
+}
+
+function renderSvcDeposit() {
+  root.innerHTML = `
+  ${pageHead('Services · Security Deposit Disposition', 'Move-out accounting done carefully.', 'The end of a tenancy is where owners lose money in both directions: refunds that were too generous, or deductions that were poorly documented. MPM guides a careful, well-supported accounting.')}
+
+  <h2 class="section-h">Why it matters</h2>
+  <ul class="ticks">
+    <li>Deposit accounting runs on strict state deadlines that vary by state. Missing them can cost you the deductions entirely.</li>
+    <li>Weak itemization invites disputes. Each deduction should be tied to evidence: photos, invoices, and estimates.</li>
+    <li>Age and useful life matter. Charging full replacement for a ten-year-old carpet is the classic mistake that turns a deduction into a fight.</li>
+    <li>Proof of delivery matters as much as the letter itself.</li>
+  </ul>
+
+  <h2 class="section-h">Why MPM</h2>
+  <div class="grid3">
+    <div class="how-step"><div class="num">1</div><h4>Guided itemization</h4><p>Walk through each charge with the evidence attached: move-out photos, invoices, estimates, and age of the item.</p></div>
+    <div class="how-step"><div class="num">2</div><h4>Estimated charge support</h4><p>MPM helps you build a supported estimate for each item. It is documentation support, not a legal determination.</p></div>
+    <div class="how-step"><div class="num">3</div><h4>One organized package</h4><p>The itemization, the letter, the evidence, and the delivery record live together in your property record.</p></div>
+  </div>
+
+  <h2 class="section-h">What you receive</h2>
+  <div class="sample-wrap">
+    <div>
+      <ul class="ticks">
+        <li>An itemized accounting with each deduction supported by evidence.</li>
+        <li>A clear disposition letter for your review and approval.</li>
+        <li>Delivery options with proof kept on file, when available.</li>
+        <li>Everything saved to your property record for later use.</li>
+      </ul>
+      <p class="small muted" style="margin-top:14px">Pricing from $25 depending on scope and delivery options.</p>
+    </div>
+    <div>
+      <div class="sample-doc">
+        <div class="doc-head"><span class="doc-brand">Deposit Accounting</span><span class="chip neutral">preview</span></div>
+        <table class="deptab">
+          <tr><td>Security deposit held</td><td>$1,500.00</td></tr>
+          <tr><td>Cleaning (invoice attached)</td><td class="neg">−$180.00</td></tr>
+          <tr><td>Carpet damage, prorated for age (photos attached)</td><td class="neg">−$220.00</td></tr>
+          <tr class="total"><td>Returned to tenant</td><td>$1,100.00</td></tr>
+        </table>
+      </div>
+      <div class="sample-cap">Illustrative example with sample numbers.</div>
+    </div>
+  </div>
+
+  ${ctaBand('Be ready before move-out', 'Create your account and start your property record today.', 'MPM is not a law firm and does not provide legal advice. Deadlines and requirements depend on your state and lease. Complex or disputed situations are routed to professional review.')}`;
+  wireCtas();
+}
+
+function renderAbout() {
+  root.innerHTML = `
+  ${pageHead('About', 'Built by people who have done the work.', 'MyPropertyManager.com was built by seasoned asset and property managers with decades of combined experience running residential rentals.')}
+
+  <div class="legal" style="max-width:760px">
+    <p>For years we watched property owners hand over 8 to 10 percent of their gross rents to full-service managers, while much of the day-to-day work ran on software: rent collection, maintenance tickets, lease generation.</p>
+    <p>The hard parts of self-managing were never the software. They were the specific, occasional, high-stakes tasks: knowing what is actually happening inside the property, documenting a problem properly, handling a lease issue in writing, and closing out a tenancy with a careful accounting.</p>
+    <p>So we documented the systems we used ourselves, combined them with modern AI and software, and turned them into guided, pay-as-you-go services. Instead of a percentage of your rent every month, you pay a reasonable price for professional help at the moments you actually need it.</p>
+  </div>
+
+  <h2 class="section-h">What we believe</h2>
+  <div class="grid3">
+    <div class="how-step"><div class="num">1</div><h4>You can manage your rental</h4><p>Most owners with a few doors do not need full-service management. They need help at specific moments.</p></div>
+    <div class="how-step"><div class="num">2</div><h4>Records win</h4><p>Good documentation, kept as you go, is the difference between a headache and a clean resolution.</p></div>
+    <div class="how-step"><div class="num">3</div><h4>Pay for what you use</h4><p>No subscriptions, no management fee, no percentage of rent. One task, one price.</p></div>
+  </div>
+
+  <h2 class="section-h">What we are not</h2>
+  <ul class="ticks">
+    <li>We are not a property management company, and we do not want a percentage of your rent.</li>
+    <li>We are not monthly software with a login you pay for whether you use it or not.</li>
+    <li>We are not a law firm and we do not provide legal advice. When a situation is disputed or complex, we recommend professional review.</li>
+  </ul>
+
+  ${ctaBand('See how it works', 'Start with a property inspection, the foundation of a well-documented rental.')}`;
+  wireCtas();
+}
+
+function renderBlog() {
+  root.innerHTML = `
+  ${pageHead('Blog', 'Practical notes for self-managing landlords.', 'Short, useful writing on inspections, records, move-outs, and the operating habits that keep small portfolios out of trouble.')}
+  <div class="grid3" style="margin-top:16px">
+    <div class="post"><div class="thumb"></div><div class="pbody"><span class="soon">Coming soon</span><h4 style="margin-top:8px">What a tenant-guided inspection actually shows you</h4><p>Under sinks, HVAC filters, smoke detectors, and the small signals that matter.</p></div></div>
+    <div class="post"><div class="thumb"></div><div class="pbody"><span class="soon">Coming soon</span><h4 style="margin-top:8px">Five records every self-managing landlord should keep</h4><p>The short list that makes move-outs, insurance, and disputes dramatically easier.</p></div></div>
+    <div class="post"><div class="thumb"></div><div class="pbody"><span class="soon">Coming soon</span><h4 style="margin-top:8px">Move-out accounting: where owners lose money</h4><p>Useful life, evidence, and deadlines, explained in plain English.</p></div></div>
+  </div>
+  <div class="social-row">Follow along: Facebook · X · LinkedIn · YouTube <span class="muted">(links coming soon)</span></div>`;
+}
+
+function renderResources() {
+  root.innerHTML = `
+  ${pageHead('Resources', 'Free guides and checklists.', 'Practical tools you can use today. No email wall, no strings.')}
+  <div class="grid3" style="margin-top:16px">
+    ${[
+      ['Move-in / move-out condition checklist', 'A room-by-room checklist for documenting condition at the start and end of a tenancy.'],
+      ['Tenant inspection prep guide', 'A one-page guide you can share with tenants so the inspection goes smoothly.'],
+      ['Seasonal maintenance calendar', 'What to check and when, across the year, for a typical single-family rental.'],
+      ['Owner recordkeeping guide', 'What to keep, how long to keep it, and how to organize it.'],
+      ['HVAC filter guide', 'Sizes, schedules, and what a neglected filter costs you.'],
+      ['Deposit documentation checklist', 'The evidence to gather before deducting anything from a deposit.'],
+    ].map(([t, d]) => `<div class="res"><span class="soon">Coming soon</span><h4 style="margin-top:6px">${t}</h4><p>${d}</p></div>`).join('')}
+  </div>
+  <p class="finehelp" style="margin-top:18px">Resources are educational best-practice materials, not legal forms or legal advice.</p>`;
+}
+
+function renderContact() {
+  root.innerHTML = `
+  ${pageHead('Contact', 'Talk to us.', 'Questions about a service, a partnership, or the product? Reach out.')}
+  <div class="contact-card" style="margin-top:14px">
+    <div class="kv">
+      <div><span class="k">Email</span> &nbsp; [contact email to be added]</div>
+      <div><span class="k">Phone</span> &nbsp; [business phone to be added]</div>
+      <div><span class="k">Address</span> &nbsp; [business address to be added]</div>
+    </div>
+  </div>
+  <p class="finehelp" style="margin-top:14px">Placeholders shown. Real contact details will be published at launch.</p>`;
 }
 
 /* ---------------- home ---------------- */
@@ -80,6 +333,9 @@ function renderHome() {
     </div>
   </section>
 
+  <!-- PRE-LAUNCH (see DEPLOY.md): availability labels were removed for team testing.
+       Before public access: Deposit Disposition and Default Letters must be live and
+       purchasable at the advertised floors, or availability labeling must return. -->
   <h2 class="section-h" id="services">Services</h2>
   <p class="section-sub">Pay only for what you need. No subscriptions, no management fee, no percentage of rent.</p>
   <div class="service-grid">
@@ -94,10 +350,10 @@ function renderHome() {
         <li>Clear inspection report</li>
         <li>Helps spot small issues early</li>
       </ul>
-      <div class="svc-cta"><button class="btn-green" data-cta="start">Get Started</button></div>
+      <div class="svc-cta"><button class="btn-green" data-cta="start">Get Started</button>
+        <a class="learn" href="/services/property-inspections" data-nav>Learn more →</a></div>
     </div>
     <div class="svc">
-      <span class="soon">Coming soon</span>
       <h3>Disposition of Security Deposit</h3>
       <div class="svc-as">as low as</div>
       <div class="svc-price">$25</div>
@@ -106,10 +362,9 @@ function renderHome() {
         <li>Itemized deposit deductions</li>
         <li>Letter and records in one place</li>
       </ul>
-      <div class="svc-cta"><button class="btn-ghost" data-cta="soon">See MPM in Action</button></div>
+      <div class="svc-cta"><a class="btn btn-ghost" href="/services/security-deposit" data-nav>See MPM in Action</a></div>
     </div>
     <div class="svc">
-      <span class="soon">Coming soon</span>
       <h3>Tenant Default Letters</h3>
       <div class="svc-as">as low as</div>
       <div class="svc-price">$15</div>
@@ -118,23 +373,26 @@ function renderHome() {
         <li>Professional letter workflow</li>
         <li>Download or mail options later</li>
       </ul>
-      <div class="svc-cta"><button class="btn-ghost" data-cta="soon">See MPM in Action</button></div>
+      <div class="svc-cta"><a class="btn btn-ghost" href="/services/default-notices" data-nav>See MPM in Action</a></div>
     </div>
   </div>
 
   <h2 class="section-h" id="how">How it works</h2>
   <div class="how">
     ${[['1','Choose a Service','Select the help you need and answer a few questions.'],
-       ['2','We Get to Work','MPM guides the process and organizes the details.'],
-       ['3','Get Your Results','Receive your report, letter, or record packet.'],
-       ['4','Take the Next Step','Use clear records and practical next-step options.']]
+       ['2','Upload Your Information','Add your details and upload your documents. MPM tells you exactly what is needed.'],
+       ['3','We Get to Work','MPM works the process and handles the details.'],
+       ['4','Get Your Results','Receive your report, letter, or record packet. The work is done for you while you handle more important things.']]
       .map(([n,t,d]) => `<div class="how-step"><div class="num">${n}</div><h4>${t}</h4><p>${d}</p></div>`).join('')}
   </div>
 
-  <h2 class="section-h">What MPM is, and is not</h2>
-  <div class="legal">
-    <p>MPM gives you organized property inspections and records you can use later. Inspections are completed by your tenant at your request, so they reflect what your tenant reports, not an independent or government inspection.</p>
-    <p>MPM is not a law firm and does not give legal advice or guarantee any outcome. Any letter or notice is written and approved by you. When a situation looks disputed or complex, MPM will suggest a professional review.</p>
+  <h2 class="section-h">MyPropertyManager in practice</h2>
+  <p class="section-sub">Professional help at the moments that matter, built on decades of hands-on property management.</p>
+  <div class="how">
+    <div class="how-step"><div class="num">1</div><h4>Your eyes on the property</h4><p>Tenant-guided photo and video inspections show you the current condition of your rental, without a site visit.</p></div>
+    <div class="how-step"><div class="num">2</div><h4>Guided workflows</h4><p>Plain-English questions and step-by-step guidance turn a task you dread into a process you can finish.</p></div>
+    <div class="how-step"><div class="num">3</div><h4>You stay in control</h4><p>You review and approve every report, letter, and next step. Nothing goes out without your say-so.</p></div>
+    <div class="how-step"><div class="num">4</div><h4>Records you can use later</h4><p>Every service builds an organized property record, ready whenever you need it.</p></div>
   </div>
 
   <div class="valuestrip">

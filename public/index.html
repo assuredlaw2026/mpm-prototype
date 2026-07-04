@@ -18,8 +18,19 @@
         <span class="wordmark">MyPropertyManager<span class="dot">.com</span></span>
       </a>
       <nav class="nav">
-        <a class="navlink" href="/" data-nav>Overview</a>
-        <a class="navlink navlink-cta" href="/app" data-nav>Owner dashboard</a>
+        <div class="dd">
+          <button class="navlink dd-btn" aria-expanded="false" aria-haspopup="true">Services <span class="caret">▾</span></button>
+          <div class="dd-menu" role="menu">
+            <a href="/services/property-inspections" data-nav role="menuitem">Property Inspections</a>
+            <a href="/services/default-notices" data-nav role="menuitem">Default Notices</a>
+            <a href="/services/security-deposit" data-nav role="menuitem">Security Deposit Disposition</a>
+          </div>
+        </div>
+        <a class="navlink" href="/about" data-nav>About</a>
+        <a class="navlink" href="/blog" data-nav>Blog</a>
+        <a class="navlink" href="/resources" data-nav>Resources</a>
+        <a class="navlink" href="/contact" data-nav>Contact</a>
+        <a class="navlink navlink-cta" href="/app" data-nav>Login</a>
       </nav>
       <span class="docket" id="docket"></span>
     </div>
