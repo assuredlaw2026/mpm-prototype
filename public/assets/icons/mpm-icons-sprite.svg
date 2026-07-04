@@ -1,0 +1,79 @@
+<svg xmlns="http://www.w3.org/2000/svg" style="display:none">
+<symbol id="icon-step-choose-service-home" viewBox="0 0 128 128"><g stroke-linecap="round" stroke-linejoin="round">
+
+    <path d="M22 62 L64 28 L106 62" stroke="#0B3D75" stroke-width="7"/>
+    <path d="M34 58 V104 H94 V58" stroke="#0B3D75" stroke-width="6"/>
+    <path d="M54 104 V74 H74 V104" stroke="#2CA01C" stroke-width="6"/>
+    <path d="M49 55 H59 V65 H49 Z" stroke="#5D8FD1" stroke-width="5"/>
+    <path d="M69 55 H79 V65 H69 Z" stroke="#5D8FD1" stroke-width="5"/>
+
+  </g></symbol>
+<symbol id="icon-step-we-get-to-work-document" viewBox="0 0 128 128"><g stroke-linecap="round" stroke-linejoin="round">
+
+    <path d="M34 18 H80 L100 38 V110 H34 Z" stroke="#0B3D75" stroke-width="6"/>
+    <path d="M80 18 V39 H100" stroke="#0B3D75" stroke-width="6"/>
+    <path d="M48 54 H80" stroke="#5D8FD1" stroke-width="6"/>
+    <path d="M48 70 H86" stroke="#0B3D75" stroke-width="6"/>
+    <path d="M48 86 H78" stroke="#5D8FD1" stroke-width="6"/>
+    <path d="M49 36 H59 V46 H49 Z" stroke="#2CA01C" stroke-width="5"/>
+
+  </g></symbol>
+<symbol id="icon-step-get-results-check" viewBox="0 0 128 128"><g stroke-linecap="round" stroke-linejoin="round">
+
+    <path d="M30 28 H82 V46" stroke="#0B3D75" stroke-width="6"/>
+    <path d="M30 28 V102 H104 V68" stroke="#0B3D75" stroke-width="6"/>
+    <path d="M46 68 L62 84 L102 38" stroke="#2CA01C" stroke-width="8"/>
+
+  </g></symbol>
+<symbol id="icon-step-take-next-step-folder" viewBox="0 0 128 128"><g stroke-linecap="round" stroke-linejoin="round">
+
+    <path d="M18 44 H52 L62 56 H110 V104 H18 Z" stroke="#0B3D75" stroke-width="6"/>
+    <path d="M18 44 V32 H52 L62 44 H110 V56" stroke="#5D8FD1" stroke-width="6"/>
+    <path d="M34 80 H76" stroke="#2CA01C" stroke-width="6"/>
+
+  </g></symbol>
+<symbol id="icon-value-fast-turnaround-clock" viewBox="0 0 128 128"><g stroke-linecap="round" stroke-linejoin="round">
+
+    <path d="M64 24 V14" stroke="#0B3D75" stroke-width="7"/>
+    <path d="M52 14 H76" stroke="#0B3D75" stroke-width="7"/>
+    <circle cx="64" cy="70" r="44" stroke="#0B3D75" stroke-width="7"/>
+    <path d="M64 42 V70 L84 90" stroke="#0B3D75" stroke-width="7"/>
+    <path d="M64 70 h0" stroke="#0B3D75" stroke-width="11"/>
+    <path d="M64 32 V38 M64 102 V108 M26 70 H32 M96 70 H102" stroke="#5D8FD1" stroke-width="7"/>
+    <path d="M92 34 L101 26" stroke="#2CA01C" stroke-width="6"/>
+
+  </g></symbol>
+<symbol id="icon-value-process-review-gavel" viewBox="0 0 128 128"><g stroke-linecap="round" stroke-linejoin="round">
+
+    <path d="M50 28 L82 60" stroke="#0B3D75" stroke-width="8"/>
+    <path d="M36 42 L62 16 L76 30 L50 56 Z" stroke="#0B3D75" stroke-width="6"/>
+    <path d="M70 76 L104 110" stroke="#0B3D75" stroke-width="8"/>
+    <path d="M64 70 L78 56 L88 66 L74 80 Z" stroke="#0B3D75" stroke-width="6"/>
+    <path d="M22 94 H72 V108 H22 Z" stroke="#0B3D75" stroke-width="6"/>
+    <path d="M32 82 H62" stroke="#5D8FD1" stroke-width="8"/>
+    <path d="M98 104 L108 114" stroke="#2CA01C" stroke-width="6"/>
+
+  </g></symbol>
+<symbol id="icon-value-clear-reports-document" viewBox="0 0 128 128"><g stroke-linecap="round" stroke-linejoin="round">
+
+    <path d="M30 16 H82 L102 36 V112 H30 Z" stroke="#0B3D75" stroke-width="6"/>
+    <path d="M82 16 V37 H102" stroke="#0B3D75" stroke-width="6"/>
+    <path d="M46 48 H58" stroke="#5D8FD1" stroke-width="7"/>
+    <path d="M46 66 H84" stroke="#0B3D75" stroke-width="6"/>
+    <path d="M46 82 H84" stroke="#5D8FD1" stroke-width="6"/>
+    <path d="M46 98 H72" stroke="#0B3D75" stroke-width="6"/>
+    <path d="M66 48 H78" stroke="#2CA01C" stroke-width="7"/>
+
+  </g></symbol>
+<symbol id="icon-value-owner-focused-people" viewBox="0 0 128 128"><g stroke-linecap="round" stroke-linejoin="round">
+
+    <path d="M64 28 C72 28 78 34 78 42 C78 50 72 56 64 56 C56 56 50 50 50 42 C50 34 56 28 64 28 Z" stroke="#0B3D75" stroke-width="7"/>
+    <path d="M36 44 C43 44 48 49 48 56 C48 63 43 68 36 68 C29 68 24 63 24 56 C24 49 29 44 36 44 Z" stroke="#5D8FD1" stroke-width="6"/>
+    <path d="M92 44 C99 44 104 49 104 56 C104 63 99 68 92 68 C85 68 80 63 80 56 C80 49 85 44 92 44 Z" stroke="#5D8FD1" stroke-width="6"/>
+    <path d="M35 108 V92 C35 78 47 68 64 68 C81 68 93 78 93 92 V108" stroke="#0B3D75" stroke-width="7"/>
+    <path d="M18 104 V88 C18 80 25 74 34 74" stroke="#0B3D75" stroke-width="6"/>
+    <path d="M110 104 V88 C110 80 103 74 94 74" stroke="#0B3D75" stroke-width="6"/>
+    <path d="M54 94 C60 100 68 100 74 94" stroke="#2CA01C" stroke-width="6"/>
+
+  </g></symbol>
+</svg>

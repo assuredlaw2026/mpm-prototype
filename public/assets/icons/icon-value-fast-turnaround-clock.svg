@@ -1,0 +1,14 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="128" height="128" viewBox="0 0 128 128" fill="none">
+  <title>MPM Icon</title>
+  <g stroke-linecap="round" stroke-linejoin="round">
+
+    <path d="M64 24 V14" stroke="#0B3D75" stroke-width="7"/>
+    <path d="M52 14 H76" stroke="#0B3D75" stroke-width="7"/>
+    <circle cx="64" cy="70" r="44" stroke="#0B3D75" stroke-width="7"/>
+    <path d="M64 42 V70 L84 90" stroke="#0B3D75" stroke-width="7"/>
+    <path d="M64 70 h0" stroke="#0B3D75" stroke-width="11"/>
+    <path d="M64 32 V38 M64 102 V108 M26 70 H32 M96 70 H102" stroke="#5D8FD1" stroke-width="7"/>
+    <path d="M92 34 L101 26" stroke="#2CA01C" stroke-width="6"/>
+
+  </g>
+</svg>
