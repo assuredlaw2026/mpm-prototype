@@ -8,7 +8,12 @@ const esc = (s) => String(s ?? '').replace(/[&<>"]/g, m => ({ '&': '&amp;', '<':
 
 const S = load();
 function load() {
-  try { return JSON.parse(localStorage.getItem('mpm') || '{}'); } catch { return {}; }
+  try {
+    const p = JSON.parse(localStorage.getItem('mpm') || '{}');
+    if (!p.v2) return { v2: true, accountId: p.accountId, accountEmail: p.accountEmail, prop: {} };
+    p.prop = p.prop || {};
+    return p;
+  } catch { return { v2: true, prop: {} }; }
 }
 function save() { localStorage.setItem('mpm', JSON.stringify(S)); }
 function reset() { localStorage.removeItem('mpm'); for (const k of Object.keys(S)) delete S[k]; }
@@ -59,7 +64,11 @@ function render() {
   if (path === '/login') { window.scrollTo(0, 0); return renderLogin(); }
   if (path === '/app') {
     if (!S.accountId) { history.replaceState({}, '', '/login'); return renderLogin(); }
-    return renderConsole();
+    window.scrollTo(0, 0); return renderDashboard();
+  }
+  if (path.startsWith('/app/property/')) {
+    if (!S.accountId) { history.replaceState({}, '', '/login'); return renderLogin(); }
+    return renderProperty(path.split('/app/property/')[1]);
   }
   const pages = {
     '/services/property-inspections': renderSvcInspections,
@@ -441,127 +450,218 @@ function renderHome() {
   root.querySelectorAll('[data-cta="soon"]').forEach(b => b.addEventListener('click', () => toast('This service is coming soon. Property inspections are available now.')));
 }
 
-/* ---------------- owner console ---------------- */
-function step(idx, title, stage, done, locked, bodyHtml) {
-  return `<section class="step ${done ? 'done' : ''} ${locked ? 'locked' : ''}">
-    <div class="head"><span class="idx">${done ? '✓' : idx}</span><h3>${title}</h3><span class="stage">${stage}</span></div>
-    ${locked ? '' : `<div class="body">${bodyHtml}</div>`}
-  </section>`;
+/* ---------------- owner dashboard ---------------- */
+const W = (pid) => (S.prop[pid] = S.prop[pid] || {});
+const statusChip = (st) => {
+  if (!st) return '<span class="chip neutral">no inspections yet</span>';
+  const ok = st.startsWith('submitted');
+  const warn = ['not_completed', 'partial_submission', 'declined'].includes(st);
+  return `<span class="chip ${ok ? 'ok' : warn ? 'atty' : 'sim'}">${esc(st.replace(/_/g, ' '))}</span>`;
+};
+
+async function renderDashboard() {
+  root.innerHTML = `
+    <div class="dashhead">
+      <div>
+        <h2 style="font-size:24px">Welcome back${S.accountEmail ? ', ' + esc(S.accountEmail.split('@')[0]) : ''}</h2>
+        <p class="muted small" style="margin:4px 0 0">Your properties, services, and next steps.</p>
+      </div>
+      <div class="row">
+        <button id="startService" class="btn-green">Start a Service</button>
+        <button id="addPropBtn" class="btn-ghost">Add Property</button>
+      </div>
+    </div>
+    <div id="svcMenu" class="svc-menu" hidden>
+      <button data-svc="inspection">Property Inspection</button>
+      <button data-svc="deposit" class="btn-ghost">Security Deposit Disposition</button>
+      <button data-svc="notice" class="btn-ghost">Default Notice</button>
+    </div>
+    <div id="addPropCard" hidden></div>
+    <h2 class="section-h" style="margin-top:30px">Properties</h2>
+    <div id="propGrid" class="prop-grid"><div class="muted small">Loading properties…</div></div>
+    <h2 class="section-h">Tasks</h2>
+    <div id="tasks"><div class="muted small">Checking for open items…</div></div>`;
+
+  const svcMenu = document.getElementById('svcMenu');
+  document.getElementById('startService').addEventListener('click', () => { svcMenu.hidden = !svcMenu.hidden; });
+  svcMenu.querySelectorAll('[data-svc]').forEach(b => b.addEventListener('click', async () => {
+    if (b.dataset.svc !== 'inspection') return toast('This service is coming soon. Property inspections are available now.');
+    const props = (await api('GET', '/api/properties')).j || [];
+    if (!props.length) { toast('Add a property first', true); return showAddProperty(); }
+    if (props.length === 1) return go('/app/property/' + props[0].id);
+    toast('Open a property below to start its inspection');
+  }));
+  document.getElementById('addPropBtn').addEventListener('click', showAddProperty);
+
+  const r = await api('GET', '/api/properties');
+  const grid = document.getElementById('propGrid');
+  if (!r.ok) { grid.innerHTML = ''; return fail(r); }
+  if (!r.j.length) {
+    grid.innerHTML = '<div class="muted small">No properties yet. Add your first property to get started.</div>';
+    document.getElementById('tasks').innerHTML = '<div class="muted small">Tasks will appear here once you have a property and an active service.</div>';
+    return;
+  }
+  grid.innerHTML = r.j.map(p => `
+    <div class="pcard">
+      <div class="pcard-top"><span class="chip sim">${esc(p.jurisdiction)}</span><span data-status="${p.id}"></span></div>
+      <h3>${esc(p.address)}</h3>
+      <button class="btn-ghost" data-open="${p.id}" style="margin-top:12px;width:100%">Open Property</button>
+    </div>`).join('');
+  grid.querySelectorAll('[data-open]').forEach(b => b.addEventListener('click', () => go('/app/property/' + b.dataset.open)));
+
+  // Tasks + latest status per property (derived from each property file)
+  const tasks = [];
+  for (const p of r.j) {
+    const f = await api('GET', `/api/properties/${p.id}/file`);
+    if (!f.ok) continue;
+    const latest = f.j.matters[0];
+    const slot = grid.querySelector(`[data-status="${p.id}"]`);
+    if (slot) slot.outerHTML = statusChip(latest && latest.status);
+    for (const m of f.j.matters) {
+      const openBtn = `<button class="btn-ghost" data-task-open="${p.id}">Open</button>`;
+      if (['created', 'link_sent', 'consented', 'in_progress'].includes(m.status))
+        tasks.push([`Inspection in progress at ${esc(p.address)}`, 'Complete or resend the tenant link.', openBtn]);
+      else if (m.status.startsWith('submitted'))
+        tasks.push([`Report ready at ${esc(p.address)}`, 'View the inspection report and choose a next step.', openBtn]);
+      else if (['not_completed', 'partial_submission', 'declined'].includes(m.status))
+        tasks.push([`Review next steps at ${esc(p.address)}`, 'The inspection was not completed. Review your options.', openBtn]);
+    }
+    if (f.j.disputes.some(d => d.active))
+      tasks.push([`Professional review recommended at ${esc(p.address)}`, 'A matter was set aside for professional review.', `<button class="btn-ghost" data-task-open="${p.id}">Open</button>`]);
+  }
+  const t = document.getElementById('tasks');
+  t.innerHTML = tasks.length
+    ? tasks.map(([h, d, b]) => `<div class="task"><div><h4>${h}</h4><p class="small muted" style="margin:2px 0 0">${d}</p></div>${b}</div>`).join('')
+    : '<div class="muted small">Nothing needs your attention right now.</div>';
+  t.querySelectorAll('[data-task-open]').forEach(b => b.addEventListener('click', () => go('/app/property/' + b.dataset.taskOpen)));
 }
 
-async function renderConsole() {
-  const have = (k) => !!S[k];
-  let html = `<div class="row" style="justify-content:space-between;align-items:center;margin-bottom:6px">
-      <div class="eyebrow" style="margin:0">Owner dashboard</div>
-      <button class="btn-ghost" id="resetBtn" style="font-size:12px;padding:6px 10px">Start a new file</button>
-    </div>`;
+async function showAddProperty() {
+  const card = document.getElementById('addPropCard');
+  card.hidden = false;
+  const ents = (await api('GET', '/api/entities')).j || [];
+  card.innerHTML = `
+    <section class="step" style="margin-top:16px"><div class="head"><h3>Add a property</h3></div><div class="body">
+      <div class="grid2">
+        <div class="field"><label>Property address</label><input id="pAddr" placeholder="1420 Sahara Ave, Unit 3"></div>
+        <div class="field"><label>State</label><select id="pJur"><option value="NV">Nevada</option><option value="AZ">Arizona</option><option value="TX">Texas</option></select></div>
+      </div>
+      <div class="grid2">
+        <div class="field"><label>Owner of this property</label>
+          <select id="pEnt">
+            ${ents.map(e => `<option value="${e.id}">${esc(e.name)}${e.entity_type ? ' (' + esc(e.entity_type) + ')' : ''}</option>`).join('')}
+            <option value="__new">+ Add a new owner…</option>
+          </select></div>
+        <div></div>
+      </div>
+      <div id="newEnt" ${ents.length ? 'hidden' : ''}>
+        <div class="grid2">
+          <div class="field"><label>Owner legal name</label><input id="entName" placeholder="Sahara Holdings LLC, or your own name"></div>
+          <div class="field"><label>Owner type</label>
+            <select id="entType"><option value="LLC">LLC</option><option value="Individual">Individual</option><option value="Trust">Trust</option><option value="Corporation">Corporation</option><option value="Partnership">Partnership</option><option value="Other">Other</option></select></div>
+        </div>
+      </div>
+      <button id="propCreate">Add property</button>
+      <div class="inline-note">The owner is who holds title. It appears on the property record and on documents prepared later, not on this dashboard.</div>
+    </div></section>`;
+  if (!ents.length) document.getElementById('pEnt').value = '__new';
+  document.getElementById('pEnt').addEventListener('change', (e) => {
+    document.getElementById('newEnt').hidden = e.target.value !== '__new';
+  });
+  document.getElementById('propCreate').addEventListener('click', async () => {
+    const address = document.getElementById('pAddr').value.trim();
+    const jurisdiction = document.getElementById('pJur').value;
+    if (!address) return toast('Address is required', true);
+    let entityId = document.getElementById('pEnt').value;
+    if (entityId === '__new') {
+      const name = document.getElementById('entName').value.trim();
+      if (!name) return toast('Owner legal name is required', true);
+      const er = await api('POST', '/api/entities', { name, entity_type: document.getElementById('entType').value });
+      if (!er.ok) return fail(er);
+      entityId = er.j.id;
+    }
+    const r = await api('POST', '/api/properties', { address, jurisdiction, owner_entity_id: entityId });
+    if (!r.ok) return fail(r);
+    toast('Property added'); renderDashboard();
+  });
+  card.scrollIntoView({ behavior: 'smooth' });
+}
 
-  // 1 — account
-  html += step('1', 'Identify the owner', 'Setup', have('accountId'), false,
-    have('accountId')
-      ? `<div class="kv"><span class="k">account</span> ${esc(S.accountEmail)} <span class="chip ok">on file</span></div>`
-      : `<div class="grid2">
-           <div class="field"><label>Your name</label><input id="oName" placeholder="Jordan Vasquez"></div>
-           <div class="field"><label>Email</label><input id="oEmail" type="email" placeholder="you@example.com"></div>
-         </div>
-         <div class="row"><button id="acctCreate">Create account</button><button class="btn-ghost" id="acctLogin">Use existing email</button></div>`);
+/* ---------------- property page ---------------- */
+async function renderProperty(pid) {
+  const f = await api('GET', `/api/properties/${pid}/file`);
+  if (!f.ok) { root.innerHTML = '<div class="muted" style="padding:40px 0">Property not found.</div>'; return; }
+  const { property, matters, disputes } = f.j;
+  const w = W(pid);
+  S.matterId = w.matterId || (matters[0] && matters[0].id) || null;
+  S.token = w.token || null;
+  S.jurisdiction = property.jurisdiction;
+  save();
+  const active = matters.find(m => m.id === S.matterId) || matters[0] || null;
+  if (active && !w.matterId) { w.matterId = active.id; w.token = active.token; save(); }
 
-  // 2 — property
-  html += step('2', 'Add a property', 'Setup', have('propertyId'), !have('accountId'),
-    have('propertyId')
-      ? `<div class="kv"><span class="k">property</span> ${esc(S.propertyAddr)} · <span class="k">jurisdiction</span> ${esc(S.jurisdiction)} <span class="chip ok">on file</span></div>`
-      : `<div class="grid2">
-           <div class="field"><label>Property address</label><input id="pAddr" placeholder="1420 Sahara Ave, Unit 3"></div>
-           <div class="field"><label>Jurisdiction</label><select id="pJur"><option value="NV">Nevada</option><option value="AZ">Arizona</option><option value="TX">Texas</option></select></div>
-         </div>
-         <button id="propCreate">Add property</button>
-         <div class="inline-note">First states only. Jurisdiction drives which state notice content is required later.</div>`);
+  root.innerHTML = `
+    <div class="dashhead">
+      <div>
+        <a href="/app" data-nav class="small" style="text-decoration:none">← Dashboard</a>
+        <h2 style="font-size:24px;margin-top:6px">${esc(property.address)}</h2>
+        <p class="muted small" style="margin:4px 0 0">
+          <span class="chip sim">${esc(property.jurisdiction)}</span>
+          &nbsp;Owner: ${property.owner_entity_name ? esc(property.owner_entity_name) + (property.owner_entity_type ? ' (' + esc(property.owner_entity_type) + ')' : '') : '<span class="muted">not recorded</span>'}
+          ${disputes.some(d => d.active) ? '&nbsp;<span class="chip atty">professional review recommended</span>' : ''}
+        </p>
+      </div>
+      <div class="row">
+        <button id="newInspection" class="btn-green">New Inspection</button>
+        <button id="pullFile" class="btn-ghost">Property File</button>
+      </div>
+    </div>
+    <div id="wizard"></div>
+    <h2 class="section-h">Inspections</h2>
+    <div id="matterList">${matters.length ? matters.map(m => `
+      <div class="task"><div>
+        <h4>Inspection ${esc(m.id.slice(0, 8))} ${statusChip(m.status)}</h4>
+        <p class="small muted" style="margin:2px 0 0">Started ${new Date(m.created_at).toLocaleDateString()} · deadline ${new Date(m.deadline_at).toLocaleDateString()}</p>
+      </div><button class="btn-ghost" data-matter="${m.id}" data-token="${esc(m.token)}">${m.id === S.matterId ? 'Selected' : 'Select'}</button></div>`).join('')
+      : '<div class="muted small">No inspections yet. Start one with New Inspection.</div>'}
+    </div>
+    ${active ? `
+    <h2 class="section-h">Selected inspection</h2>
+    <section class="step"><div class="body">
+      <div class="kv"><span class="k">matter</span> ${esc(S.matterId ? S.matterId.slice(0, 8) : '')} · <span class="k">status</span> ${statusChip(active.status)}</div>
+      <div style="margin:12px 0"><span class="k kv">tenant link (simulated dispatch):</span><br>
+        <a class="tokenline" href="/inspect/${esc(w.token || active.token)}" target="_blank" rel="noopener">/inspect/${esc(w.token || active.token)}</a></div>
+      <div class="row">
+        ${active.status === 'created' ? '<button id="sendLink" class="btn-sim">Send link (simulated)</button>' : ''}
+        <a class="btn btn-ghost" href="/inspect/${esc(w.token || active.token)}" target="_blank" rel="noopener">Open tenant view ↗</a>
+        <button id="pullReport" class="btn-ghost">View report</button>
+        <button id="exportBtn" class="btn-ghost">Export Property Record Packet</button>
+      </div>
+      <div id="reportOut"></div><div id="exportOut"></div><div id="fileOut"></div>
+    </div></section>
 
-  // 3 — tenant + attestation
-  html += step('3', 'Add the tenant and attest', 'Setup', have('attested'), !have('propertyId'),
-    have('attested')
-      ? `<div class="kv"><span class="k">tenant</span> ${esc(S.tenantName)} <span class="chip ok">attested</span></div>`
-      : `<div class="grid2">
-           <div class="field"><label>Tenant name</label><input id="tName" placeholder="Pat Chen"></div>
-           <div class="field"><label>Mobile (for the simulated link)</label><input id="tPhone" placeholder="702-555-0107"></div>
-         </div>
-         ${have('tenantId') ? '' : '<button id="tenantCreate">Save tenant</button>'}
-         <div id="attestBlock" class="${have('tenantId') ? '' : 'locked'}" style="margin-top:14px">
-           <div class="legal" style="margin-bottom:10px">Before any link is sent, you must affirm the basis for contacting this tenant. Each statement must be true.</div>
-           ${[['authority','I have the authority to request an inspection of this property.'],
-              ['accuracy','The property and tenant details I entered are accurate.'],
-              ['consent_basis','I have a lawful basis to contact this tenant at the number provided.'],
-              ['relationship','A current landlord–tenant relationship exists for this property.'],
-              ['truth','The statements I make in this file are true to the best of my knowledge.']]
-             .map(([k,t]) => `<label class="attest"><input type="checkbox" data-att="${k}"><span class="t">${t}</span></label>`).join('')}
-           <button id="attestBtn" style="margin-top:12px" ${have('tenantId') ? '' : 'aria-disabled="true" disabled'}>Record attestation</button>
-         </div>`);
+    <h2 class="section-h">If this inspection isn’t completed</h2>
+    <section class="step"><div class="body">
+      <p class="small muted">MPM never sends a tenant straight to a notice. First a neutral cooperation request, then a short review of next steps before any letter is prepared. Use the simulation controls to advance the clock.</p>
+      <div class="row" style="margin:10px 0">
+        <button id="resolveTimeout" class="btn-ghost">Resolve timeout</button>
+        <button id="coopReq" class="btn-ghost">Send Final Cooperation Request</button>
+      </div>
+      <div class="divider"></div>
+      <div class="grid2">
+        <div class="field"><label>Has this tenant recently made a complaint, repair request, or accommodation request?</label>
+          <select id="scrProt"><option value="">— select —</option><option value="no">No</option><option value="yes">Yes or unsure</option></select></div>
+        <div class="field"><label>Are any of the underlying facts in dispute?</label>
+          <select id="scrDisp"><option value="">— select —</option><option value="no">No</option><option value="yes">Yes or unsure</option></select></div>
+      </div>
+      <button id="eligBtn">Review Next Steps</button>
+      <div id="eligOut"></div>
+    </div></section>` : ''}
 
-  // 4 — purchase
-  html += step('4', 'Purchase an inspection', 'Setup', have('purchaseId'), !have('attested'),
-    have('purchaseId')
-      ? `<div class="kv"><span class="k">purchase</span> ${esc(S.packageCode)} · ${money(S.pricePaid)} <span class="chip ok">paid (simulated)</span></div>`
-      : `<div class="field" style="max-width:320px"><label>Package</label>
-           <select id="pkg">
-             <option value="SINGLE">Single — $75</option>
-             <option value="SEMIANNUAL">Semiannual (2) — $135</option>
-             <option value="QUARTERLY" ${S.pick === 'QUARTERLY' ? 'selected' : ''}>Quarterly (4) — $180 · best value</option>
-           </select></div>
-         <button id="buyBtn">Pay (simulated)</button>
-         <div class="inline-note">No card is charged. Payment is simulated; only the three locked prices exist.</div>`);
-  // preselect from home pick
-  setTimeout(() => { const sel = document.getElementById('pkg'); if (sel && S.pick) { sel.value = S.pick; } }, 0);
-
-  // 5 — create + send link
-  html += step('5', 'Create the inspection and send the link', 'Inspect', have('linkSent'), !have('purchaseId'),
-    have('matterId')
-      ? `<div class="kv"><span class="k">matter</span> ${esc(S.matterId.slice(0, 8))} · <span class="k">status</span> <span id="mStatus">${esc(S.matterStatus || 'created')}</span></div>
-         <div style="margin:12px 0"><span class="k kv">tenant link (simulated dispatch):</span><br>
-           <a class="tokenline" href="/inspect/${esc(S.token)}" target="_blank" rel="noopener">/inspect/${esc(S.token)}</a></div>
-         <div class="row">
-           ${have('linkSent') ? '' : '<button id="sendLink" class="btn-sim">Send link (simulated)</button>'}
-           <a class="btn btn-ghost" href="/inspect/${esc(S.token)}" target="_blank" rel="noopener">Open tenant view ↗</a>
-         </div>
-         <div class="inline-note">Opens the mobile inspection in a new tab. Complete it there, then pull the report below.</div>`
-      : `<button id="createMatter">Create inspection</button>
-         <div class="inline-note">Requires a recorded attestation and a paid purchase. The deadline is five calendar days.</div>`);
-
-  // 6 — report (Identify) + Act
-  html += step('6', 'Review the report', 'Identify · Act', false, !have('matterId'),
-    `<div class="row"><button id="pullReport" class="btn-ghost">Pull current report</button></div>
-     <div id="reportOut"><div class="inline-note">Complete the tenant inspection, then pull the report.</div></div>`);
-
-  // 7 — property file (Document)
-  html += step('7', 'Open the property file', 'Document', false, !have('propertyId'),
-    `<button id="pullFile" class="btn-ghost">Open property file</button><div id="fileOut"></div>`);
-
-  // 8 — export packet (Protect)
-  html += step('8', 'Export the Property Record Packet', 'Protect', false, !have('matterId'),
-    `<button id="exportBtn">Export Property Record Packet</button><div id="exportOut"></div>`);
-
-  // 9 — Phase 2 notice path
-  html += `<h2 class="section-h">If an inspection isn’t completed</h2>`;
-  html += step('9', 'Review next steps for an incomplete inspection', 'Next steps', false, !have('matterId'),
-    `<p class="small muted">This applies when an inspection is not completed. MPM never sends a tenant straight to a notice. First we send a neutral cooperation request, then we walk through a short review of the next steps before any letter is prepared. Use the simulation controls to advance the clock.</p>
-     <div class="row" style="margin:10px 0">
-       <button id="resolveTimeout" class="btn-ghost">Resolve timeout</button>
-       <button id="coopReq" class="btn-ghost">Send Final Cooperation Request</button>
-     </div>
-     <div class="divider"></div>
-     <div class="grid2">
-       <div class="field"><label>Has this tenant recently made a complaint, repair request, or accommodation request?</label>
-         <select id="scrProt"><option value="">— select —</option><option value="no">No</option><option value="yes">Yes or unsure</option></select></div>
-       <div class="field"><label>Are any of the underlying facts in dispute?</label>
-         <select id="scrDisp"><option value="">— select —</option><option value="no">No</option><option value="yes">Yes or unsure</option></select></div>
-     </div>
-     <button id="eligBtn">Review Next Steps</button>
-     <div id="eligOut"></div>`);
-
-  // simulation + Phase 4 controls
-  html += `<h2 class="section-h">Prototype simulation controls</h2>
+    <h2 class="section-h">Prototype simulation controls</h2>
     <div class="controls">
       <h3>Clock &amp; counsel gates — prototype only</h3>
-      <p class="muted small">These stand in for the passage of time and for counsel/state approvals. They exist so the gated paths can be demonstrated. They are not part of the owner product.</p>
+      <p class="muted small">These stand in for the passage of time and for counsel/state approvals so the gated paths can be demonstrated. They are not part of the owner product.</p>
       <div class="row">
         <button data-clock="${25 * 3600000}" class="btn-sim">Advance 25h</button>
         <button data-clock="${49 * 3600000}" class="btn-sim">Advance 49h</button>
@@ -574,7 +674,7 @@ async function renderConsole() {
         <button data-tcpa="off" class="btn-ghost">TCPA approval: OFF</button>
       </div>
       <div class="divider" style="background:#2a3038"></div>
-      <h3>Phase 4 — live channels (gated)</h3>
+      <h3>Live channels (gated)</h3>
       <div class="row">
         <button id="liveSms" class="btn-stamp">Try live SMS</button>
         <button id="liveNotice" class="btn-stamp">Try live notice generation</button>
@@ -582,122 +682,127 @@ async function renderConsole() {
       <div id="liveOut"></div>
     </div>`;
 
-  root.innerHTML = html;
-  wireConsole();
-}
-
-function wireConsole() {
-  const byId = (id) => document.getElementById(id);
-  byId('resetBtn')?.addEventListener('click', () => { reset(); save(); toast('New file started'); render(); });
-
-  // 1 account
-  byId('acctCreate')?.addEventListener('click', async () => {
-    const name = byId('oName').value.trim(), email = byId('oEmail').value.trim();
-    if (!name || !email) return toast('Name and email are required', true);
-    const r = await api('POST', '/api/accounts', { name, email }, false);
-    if (!r.ok) return fail(r);
-    S.accountId = r.j.id; S.accountEmail = email; save(); toast('Account created'); render();
-  });
-  byId('acctLogin')?.addEventListener('click', async () => {
-    const email = byId('oEmail').value.trim();
-    if (!email) return toast('Enter the email you used', true);
-    const r = await api('POST', '/api/login', { email }, false);
-    if (!r.ok) return fail(r);
-    S.accountId = r.j.id; S.accountEmail = email; save(); toast('Signed in'); render();
-  });
-
-  // 2 property
-  byId('propCreate')?.addEventListener('click', async () => {
-    const address = byId('pAddr').value.trim(), jurisdiction = byId('pJur').value;
-    if (!address) return toast('Address is required', true);
-    const r = await api('POST', '/api/properties', { address, jurisdiction });
-    if (!r.ok) return fail(r);
-    S.propertyId = r.j.id; S.propertyAddr = address; S.jurisdiction = jurisdiction; save(); toast('Property added'); render();
-  });
-
-  // 3 tenant + attestation
-  byId('tenantCreate')?.addEventListener('click', async () => {
-    const name = byId('tName').value.trim(), phone = byId('tPhone').value.trim();
-    if (!name) return toast('Tenant name is required', true);
-    const r = await api('POST', `/api/properties/${S.propertyId}/tenants`, { name, phone });
-    if (!r.ok) return fail(r);
-    S.tenantId = r.j.id; S.tenantName = name; save(); toast('Tenant saved'); render();
-  });
-  byId('attestBtn')?.addEventListener('click', async () => {
-    const v = {}; document.querySelectorAll('[data-att]').forEach(c => v[c.dataset.att] = c.checked);
-    const body = { tenant_id: S.tenantId, ...v };
-    const r = await api('POST', `/api/properties/${S.propertyId}/attestation`, body);
-    if (!r.ok) return fail(r); // all five must be true or the row cannot exist
-    S.attested = true; save(); toast('Attestation recorded'); render();
-  });
-
-  // 4 purchase
-  byId('buyBtn')?.addEventListener('click', async () => {
-    const code = byId('pkg').value;
-    const r = await api('POST', '/api/purchases', { property_id: S.propertyId, package_code: code });
-    if (!r.ok) return fail(r);
-    S.purchaseId = r.j.id; S.packageCode = r.j.package; S.pricePaid = r.j.price_cents; delete S.pick; save(); toast('Purchase recorded'); render();
-  });
-
-  // 5 create + send
-  byId('createMatter')?.addEventListener('click', async () => {
-    const r = await api('POST', '/api/matters', { property_id: S.propertyId, tenant_id: S.tenantId, purchase_id: S.purchaseId });
-    if (!r.ok) return fail(r);
-    S.matterId = r.j.id; S.token = r.j.token; S.matterStatus = 'created'; save(); toast('Inspection created'); render();
-  });
-  byId('sendLink')?.addEventListener('click', async () => {
+  document.getElementById('newInspection').addEventListener('click', () => renderWizard(pid, property));
+  document.getElementById('pullFile').addEventListener('click', () => pullFile(pid));
+  root.querySelectorAll('[data-matter]').forEach(b => b.addEventListener('click', () => {
+    w.matterId = b.dataset.matter; w.token = b.dataset.token; S.matterId = w.matterId; S.token = w.token; save();
+    renderProperty(pid);
+  }));
+  document.getElementById('sendLink')?.addEventListener('click', async () => {
     const r = await api('POST', `/api/matters/${S.matterId}/send-link`, { channel: 'sms' });
     if (!r.ok) return fail(r);
-    S.linkSent = true; S.matterStatus = 'link_sent'; save(); toast('Link dispatched (simulated)'); render();
+    toast('Link dispatched (simulated)'); renderProperty(pid);
   });
-
-  // 6 report + act
-  byId('pullReport')?.addEventListener('click', () => pullReport());
-  // 7 file
-  byId('pullFile')?.addEventListener('click', () => pullFile());
-  // 8 export
-  byId('exportBtn')?.addEventListener('click', () => exportPacket());
-
-  // 9 phase 2
-  byId('resolveTimeout')?.addEventListener('click', async () => {
+  document.getElementById('pullReport')?.addEventListener('click', () => pullReport());
+  document.getElementById('exportBtn')?.addEventListener('click', () => exportPacket());
+  document.getElementById('resolveTimeout')?.addEventListener('click', async () => {
     const r = await api('POST', `/api/matters/${S.matterId}/resolve-timeout`);
     if (!r.ok) return fail(r);
-    S.matterStatus = r.j.status; save(); toast('Timeout resolved → ' + r.j.status); render();
+    toast('Timeout resolved → ' + r.j.status); renderProperty(pid);
   });
-  byId('coopReq')?.addEventListener('click', async () => {
+  document.getElementById('coopReq')?.addEventListener('click', async () => {
     const r = await api('POST', `/api/matters/${S.matterId}/cooperation-request`);
     if (!r.ok) return fail(r);
     toast('Final Cooperation Request recorded (48h window)');
   });
-  byId('eligBtn')?.addEventListener('click', () => runEligibility());
-
-  // sim controls
+  document.getElementById('eligBtn')?.addEventListener('click', () => runEligibility());
   document.querySelectorAll('[data-clock]').forEach(b => b.addEventListener('click', async () => {
     const r = await api('POST', '/api/dev/clock', { advance_ms: Number(b.dataset.clock) });
     if (r.ok) toast('Clock advanced');
   }));
-  byId('expireDeadline')?.addEventListener('click', async () => {
-    if (!S.matterId) return toast('Create an inspection first', true);
+  document.getElementById('expireDeadline')?.addEventListener('click', async () => {
+    if (!S.matterId) return toast('Select an inspection first', true);
     const r = await api('POST', `/api/dev/matter/${S.matterId}/expire-deadline`);
     if (r.ok) toast('Deadline expired'); else fail(r);
   });
   document.querySelectorAll('[data-mod]').forEach(b => b.addEventListener('click', async () => {
-    const r = await api('POST', '/api/dev/state-module', { jurisdiction: S.jurisdiction || 'NV', available: b.dataset.mod === 'on' });
-    if (r.ok) toast(`State content for ${S.jurisdiction || 'NV'}: ${b.dataset.mod.toUpperCase()}`);
+    const r = await api('POST', '/api/dev/state-module', { jurisdiction: property.jurisdiction, available: b.dataset.mod === 'on' });
+    if (r.ok) toast(`State content for ${property.jurisdiction}: ${b.dataset.mod.toUpperCase()}`);
   }));
   document.querySelectorAll('[data-tcpa]').forEach(b => b.addEventListener('click', async () => {
     const r = await api('POST', '/api/dev/tcpa', { approved: b.dataset.tcpa === 'on' });
     if (r.ok) toast('TCPA approval: ' + b.dataset.tcpa.toUpperCase());
   }));
-
-  // phase 4 live
-  byId('liveSms')?.addEventListener('click', async () => {
-    const r = await api('POST', '/api/live/sms', { to: S.tenantName || 'tenant' });
-    showLive(r, 'Live SMS');
+  document.getElementById('liveSms')?.addEventListener('click', async () => {
+    showLive(await api('POST', '/api/live/sms', { to: 'tenant' }), 'Live SMS');
   });
-  byId('liveNotice')?.addEventListener('click', async () => {
-    const r = await api('POST', '/api/live/notice-generate', { matter_id: S.matterId });
-    showLive(r, 'Live notice generation');
+  document.getElementById('liveNotice')?.addEventListener('click', async () => {
+    showLive(await api('POST', '/api/live/notice-generate', { matter_id: S.matterId }), 'Live notice generation');
+  });
+}
+
+/* ---------------- new inspection wizard (scoped to a property) ---------------- */
+function renderWizard(pid, property) {
+  const w = W(pid);
+  const box = document.getElementById('wizard');
+  box.innerHTML = `
+  <section class="step" style="margin-top:16px">
+    <div class="head"><h3>New Inspection · ${esc(property.address)}</h3><span class="stage">${esc(property.jurisdiction)}</span></div>
+    <div class="body">
+      <h4 style="margin-bottom:8px">1 · Tenant</h4>
+      ${w.tenantId ? `<div class="kv"><span class="k">tenant</span> ${esc(w.tenantName)} <span class="chip ok">saved</span></div>` : `
+      <div class="grid2">
+        <div class="field"><label>Tenant name</label><input id="tName" placeholder="Pat Chen"></div>
+        <div class="field"><label>Mobile (for the simulated link)</label><input id="tPhone" placeholder="702-555-0107"></div>
+      </div>
+      <button id="tenantCreate">Save tenant</button>`}
+      <div class="divider"></div>
+      <h4 style="margin-bottom:8px">2 · Owner affirmations</h4>
+      ${w.attested ? '<div class="kv"><span class="chip ok">recorded</span></div>' : `
+      <div class="legal" style="margin-bottom:10px">Before any link is sent, you must affirm the basis for contacting this tenant. Each statement must be true.</div>
+      ${[['authority', 'I have the authority to request an inspection of this property.'],
+         ['accuracy', 'The property and tenant details I entered are accurate.'],
+         ['consent_basis', 'I have a lawful basis to contact this tenant at the number provided.'],
+         ['relationship', 'A current landlord–tenant relationship exists for this property.'],
+         ['truth', 'The statements I make in this file are true to the best of my knowledge.']]
+        .map(([k, t]) => `<label class="attest"><input type="checkbox" data-att="${k}"><span class="t">${t}</span></label>`).join('')}
+      <button id="attestBtn" style="margin-top:12px" ${w.tenantId ? '' : 'aria-disabled="true" disabled'}>Record affirmations</button>`}
+      <div class="divider"></div>
+      <h4 style="margin-bottom:8px">3 · Package</h4>
+      ${w.purchaseId ? `<div class="kv"><span class="k">purchase</span> ${esc(w.packageCode)} · ${money(w.pricePaid)} <span class="chip ok">paid (simulated)</span></div>` : `
+      <div class="field" style="max-width:340px"><label>Package</label>
+        <select id="pkg">
+          <option value="SINGLE">Single — $75</option>
+          <option value="SEMIANNUAL">Semiannual (2) — $135</option>
+          <option value="QUARTERLY" selected>Quarterly (4) — $180 · best value</option>
+        </select></div>
+      <button id="buyBtn" ${w.attested ? '' : 'aria-disabled="true" disabled'}>Pay (simulated)</button>
+      <div class="inline-note">No card is charged. Only the three locked prices exist.</div>`}
+      <div class="divider"></div>
+      <h4 style="margin-bottom:8px">4 · Create and send</h4>
+      <button id="createMatter" ${w.purchaseId && !w.matterCreated ? '' : 'aria-disabled="true" disabled'}>Create inspection and send link</button>
+      <div class="inline-note">The tenant has five calendar days. Reminders are simulated on Day 2 and Day 4.</div>
+    </div>
+  </section>`;
+  box.scrollIntoView({ behavior: 'smooth' });
+
+  document.getElementById('tenantCreate')?.addEventListener('click', async () => {
+    const name = document.getElementById('tName').value.trim(), phone = document.getElementById('tPhone').value.trim();
+    if (!name) return toast('Tenant name is required', true);
+    const r = await api('POST', `/api/properties/${pid}/tenants`, { name, phone });
+    if (!r.ok) return fail(r);
+    w.tenantId = r.j.id; w.tenantName = name; save(); toast('Tenant saved'); renderWizard(pid, property);
+  });
+  document.getElementById('attestBtn')?.addEventListener('click', async () => {
+    const v = {}; document.querySelectorAll('[data-att]').forEach(c => v[c.dataset.att] = c.checked);
+    const r = await api('POST', `/api/properties/${pid}/attestation`, { tenant_id: w.tenantId, ...v });
+    if (!r.ok) return fail(r);
+    w.attested = true; save(); toast('Affirmations recorded'); renderWizard(pid, property);
+  });
+  document.getElementById('buyBtn')?.addEventListener('click', async () => {
+    const code = document.getElementById('pkg').value;
+    const r = await api('POST', '/api/purchases', { property_id: pid, package_code: code });
+    if (!r.ok) return fail(r);
+    w.purchaseId = r.j.id; w.packageCode = r.j.package; w.pricePaid = r.j.price_cents; save(); toast('Purchase recorded'); renderWizard(pid, property);
+  });
+  document.getElementById('createMatter')?.addEventListener('click', async () => {
+    const r = await api('POST', '/api/matters', { property_id: pid, tenant_id: w.tenantId, purchase_id: w.purchaseId });
+    if (!r.ok) return fail(r);
+    w.matterId = r.j.id; w.token = r.j.token; w.matterCreated = true;
+    const sl = await api('POST', `/api/matters/${w.matterId}/send-link`, { channel: 'sms' });
+    if (!sl.ok) fail(sl); else toast('Inspection created and link dispatched (simulated)');
+    w.purchaseId = null; w.attested = false; w.matterCreated = false; // reset for the next inspection on this property
+    save(); renderProperty(pid);
   });
 }
 
@@ -784,9 +889,9 @@ async function pullReport() {
   });
 }
 
-async function pullFile() {
+async function pullFile(pid) {
   const out = document.getElementById('fileOut');
-  const r = await api('GET', `/api/properties/${S.propertyId}/file`);
+  const r = await api('GET', `/api/properties/${pid}/file`);
   if (!r.ok) return fail(r);
   const { property, matters, documents, disputes, audit } = r.j;
   out.innerHTML = `
