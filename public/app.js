@@ -64,15 +64,19 @@ function renderHome() {
       </div>
     </div>
     <div class="hero-art">
-      <svg viewBox="0 0 200 150" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
-        <rect x="24" y="70" width="152" height="60" rx="6" fill="#ffffff" stroke="#1667c2" stroke-width="3"/>
-        <path d="M100 24 L176 74 L24 74 Z" fill="#e7f0fb" stroke="#1667c2" stroke-width="3" stroke-linejoin="round"/>
-        <rect x="86" y="92" width="28" height="38" rx="3" fill="#e4f3ea" stroke="#1e9e63" stroke-width="3"/>
-        <rect x="42" y="90" width="24" height="20" rx="2" fill="#fff" stroke="#1667c2" stroke-width="2.5"/>
-        <rect x="134" y="90" width="24" height="20" rx="2" fill="#fff" stroke="#1667c2" stroke-width="2.5"/>
-        <circle cx="100" cy="52" r="9" fill="#fff" stroke="#1e9e63" stroke-width="3"/>
-        <circle cx="100" cy="52" r="3" fill="#1e9e63"/>
+      <svg class="hero-illus" viewBox="0 0 220 165" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+        <line x1="14" y1="140" x2="206" y2="140" stroke="#c9dceb" stroke-width="3" stroke-linecap="round"/>
+        <rect x="34" y="72" width="152" height="68" rx="7" fill="#ffffff" stroke="#1667c2" stroke-width="3.2"/>
+        <path d="M110 26 L188 76 L32 76 Z" fill="#e7f0fb" stroke="#1667c2" stroke-width="3.2" stroke-linejoin="round"/>
+        <rect x="96" y="98" width="28" height="42" rx="3" fill="#e4f3ea" stroke="#1e9e63" stroke-width="3.2"/>
+        <rect x="52" y="94" width="24" height="22" rx="2" fill="#fff" stroke="#1667c2" stroke-width="2.6"/>
+        <rect x="144" y="94" width="24" height="22" rx="2" fill="#fff" stroke="#1667c2" stroke-width="2.6"/>
+        <circle cx="110" cy="54" r="9.5" fill="#fff" stroke="#1e9e63" stroke-width="3.2"/>
+        <circle cx="110" cy="54" r="3.2" fill="#1e9e63"/>
       </svg>
+      <img class="hero-photo" src="/hero.webp" alt="" style="display:none"
+           onload="this.style.display='block'; this.previousElementSibling.style.display='none';"
+           onerror="this.remove()">
     </div>
   </section>
 
@@ -80,6 +84,7 @@ function renderHome() {
   <p class="section-sub">Pay only for what you need. No subscriptions, no management fee, no percentage of rent.</p>
   <div class="service-grid">
     <div class="svc feature">
+      <span class="svc-badge">Best Value</span>
       <h3>Property Inspections</h3>
       <div class="svc-as">as low as</div>
       <div class="svc-price">$45</div>
@@ -101,7 +106,7 @@ function renderHome() {
         <li>Itemized deposit deductions</li>
         <li>Letter and records in one place</li>
       </ul>
-      <div class="svc-cta"><button class="btn-ghost" data-cta="soon">Get Started</button></div>
+      <div class="svc-cta"><button class="btn-ghost" data-cta="soon">See MPM in Action</button></div>
     </div>
     <div class="svc">
       <span class="soon">Coming soon</span>
@@ -113,7 +118,7 @@ function renderHome() {
         <li>Professional letter workflow</li>
         <li>Download or mail options later</li>
       </ul>
-      <div class="svc-cta"><button class="btn-ghost" data-cta="soon">Get Started</button></div>
+      <div class="svc-cta"><button class="btn-ghost" data-cta="soon">See MPM in Action</button></div>
     </div>
   </div>
 
