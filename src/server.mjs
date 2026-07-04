@@ -68,8 +68,9 @@ function send(res, status, obj) {
 }
 
 function serveStatic(res, pathname) {
-  // tenant deep link and app routes serve the SPA shell; real asset files (with an extension) are served as-is
-  const isNavRoute = pathname === '/' || pathname === '/app' || pathname === '/inspect' || pathname.startsWith('/app/') || pathname.startsWith('/inspect/');
+  // Any path without a file extension is a client-side route and serves the SPA shell.
+  // Real asset files (with an extension) are served as-is. /api/* is handled earlier.
+  const isNavRoute = path.extname(pathname) === '';
   let rel = isNavRoute ? '/index.html' : pathname;
   const filePath = path.join(PUBLIC, path.normalize(rel).replace(/^(\.\.[/\\])+/, ''));
   if (!filePath.startsWith(PUBLIC)) { res.writeHead(403); return res.end('forbidden'); }
