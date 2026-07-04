@@ -309,7 +309,7 @@ function renderHome() {
   <section class="hero">
     <div class="hero-copy">
       <div class="eyebrow">Your eyes on the property</div>
-      <h1>Professional Service at Affordable Prices</h1>
+      <h1>Professional Service<br><span class="accent">at Affordable Prices</span></h1>
       <p class="lede">Reliable property inspections and essential landlord services to help you protect your rental, stay organized, and save time.</p>
       <div class="cta-row">
         <button class="btn-green" data-cta="start">Get Started</button>
@@ -317,19 +317,7 @@ function renderHome() {
       </div>
     </div>
     <div class="hero-art">
-      <svg class="hero-illus" viewBox="0 0 220 165" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
-        <line x1="14" y1="140" x2="206" y2="140" stroke="#c9dceb" stroke-width="3" stroke-linecap="round"/>
-        <rect x="34" y="72" width="152" height="68" rx="7" fill="#ffffff" stroke="#1667c2" stroke-width="3.2"/>
-        <path d="M110 26 L188 76 L32 76 Z" fill="#e7f0fb" stroke="#1667c2" stroke-width="3.2" stroke-linejoin="round"/>
-        <rect x="96" y="98" width="28" height="42" rx="3" fill="#e4f3ea" stroke="#1e9e63" stroke-width="3.2"/>
-        <rect x="52" y="94" width="24" height="22" rx="2" fill="#fff" stroke="#1667c2" stroke-width="2.6"/>
-        <rect x="144" y="94" width="24" height="22" rx="2" fill="#fff" stroke="#1667c2" stroke-width="2.6"/>
-        <circle cx="110" cy="54" r="9.5" fill="#fff" stroke="#1e9e63" stroke-width="3.2"/>
-        <circle cx="110" cy="54" r="3.2" fill="#1e9e63"/>
-      </svg>
-      <img class="hero-photo" src="/hero.webp" alt="" style="display:none"
-           onload="this.style.display='block'; this.previousElementSibling.style.display='none';"
-           onerror="this.remove()">
+      <img src="/assets/mpm-hero-home.png" alt="" />
     </div>
   </section>
 
@@ -359,7 +347,7 @@ function renderHome() {
       <div class="svc-price">$25</div>
       <ul>
         <li>Move-out accounting</li>
-        <li>Itemized deposit deductions</li>
+        <li>Itemized deposit summary</li>
         <li>Letter and records in one place</li>
       </ul>
       <div class="svc-cta"><a class="btn btn-ghost" href="/services/security-deposit" data-nav>See MPM in Action</a></div>
@@ -370,7 +358,7 @@ function renderHome() {
       <div class="svc-price">$15</div>
       <ul>
         <li>Late rent and lease issues</li>
-        <li>Professional letter workflow</li>
+        <li>Guided letter workflow</li>
         <li>Download or mail options later</li>
       </ul>
       <div class="svc-cta"><a class="btn btn-ghost" href="/services/default-notices" data-nav>See MPM in Action</a></div>
@@ -379,11 +367,11 @@ function renderHome() {
 
   <h2 class="section-h" id="how">How it works</h2>
   <div class="how">
-    ${[['1','Choose a Service','Select the help you need and answer a few questions.'],
-       ['2','Upload Your Information','Add your details and upload your documents. MPM tells you exactly what is needed.'],
-       ['3','We Get to Work','MPM works the process and handles the details.'],
-       ['4','Get Your Results','Receive your report, letter, or record packet. The work is done for you while you handle more important things.']]
-      .map(([n,t,d]) => `<div class="how-step"><div class="num">${n}</div><h4>${t}</h4><p>${d}</p></div>`).join('')}
+    ${[['1','Choose a Service','Select the help you need and answer a few questions.','/assets/icons/icon-step-choose-service-home.svg'],
+       ['2','Upload Your Information','Add your details and upload your documents. MPM tells you exactly what is needed.','/assets/icons/icon-step-we-get-to-work-document.svg'],
+       ['3','We Get to Work','MPM works the process and handles the details.','/assets/icons/icon-step-take-next-step-folder.svg'],
+       ['4','Get Your Results','Receive your report, letter, or record packet. The work is done for you while you handle more important things.','/assets/icons/icon-step-get-results-check.svg']]
+      .map(([n,t,d,i]) => `<div class="how-step"><div class="step-top"><span class="num">${n}</span><img class="step-icon" src="${i}" alt=""></div><h4>${t}</h4><p>${d}</p></div>`).join('')}
   </div>
 
   <h2 class="section-h">MyPropertyManager in practice</h2>
@@ -396,8 +384,11 @@ function renderHome() {
   </div>
 
   <div class="valuestrip">
-    ${['Fast Turnaround','Clear Reports','Practical Next Steps','Pay Only When Needed']
-      .map(v => `<div class="value"><span class="tick"></span>${v}</div>`).join('')}
+    ${[['Fast Turnaround','/assets/icons/icon-value-fast-turnaround-clock.svg'],
+       ['Clear Reports','/assets/icons/icon-value-clear-reports-document.svg'],
+       ['Practical Next Steps','/assets/icons/icon-step-get-results-check.svg'],
+       ['Pay Only When Needed','/assets/icons/icon-step-take-next-step-folder.svg']]
+      .map(([v,i]) => `<div class="value"><span class="icon-tile"><img src="${i}" alt=""></span>${v}</div>`).join('')}
   </div>`;
 
   root.querySelectorAll('[data-cta="start"]').forEach(b => b.addEventListener('click', () => go('/app')));
