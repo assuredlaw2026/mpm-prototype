@@ -295,14 +295,19 @@ function renderResources() {
 function renderContact() {
   root.innerHTML = `
   ${pageHead('Contact', 'Talk to us.', 'Questions about a service, a partnership, or the product? Reach out.')}
-  <div class="contact-card" style="margin-top:14px">
-    <div class="kv">
-      <div><span class="k">Email</span> &nbsp; [contact email to be added]</div>
-      <div><span class="k">Phone</span> &nbsp; [business phone to be added]</div>
-      <div><span class="k">Address</span> &nbsp; [business address to be added]</div>
+  <div class="contact-grid">
+    <div class="contact-card">
+      <div class="kv">
+        <div><span class="k">Email</span> &nbsp; <a href="mailto:contact@mypropertymanager.com">contact@mypropertymanager.com</a></div>
+        <div><span class="k">Phone</span> &nbsp; <a href="tel:+18662486564">866-248-6564</a></div>
+        <div><span class="k">Address</span> &nbsp; 635 W Lake Mead Parkway, Henderson, NV 89015</div>
+      </div>
     </div>
-  </div>
-  <p class="finehelp" style="margin-top:14px">Placeholders shown. Real contact details will be published at launch.</p>`;
+    <figure class="hq">
+      <img src="/assets/mpm-headquarters.jpg" alt="MyPropertyManager.com headquarters in Henderson, Nevada" />
+      <figcaption>MPM headquarters · Henderson, Nevada</figcaption>
+    </figure>
+  </div>`;
 }
 
 /* ---------------- login ---------------- */
