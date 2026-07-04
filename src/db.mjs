@@ -45,11 +45,20 @@ CREATE TABLE IF NOT EXISTS account (
   created_at INTEGER NOT NULL
 );
 
+CREATE TABLE IF NOT EXISTS owner_entity (
+  id TEXT PRIMARY KEY,
+  account_id TEXT NOT NULL REFERENCES account(id),
+  name TEXT NOT NULL CHECK (length(trim(name)) > 0),
+  entity_type TEXT,
+  created_at INTEGER NOT NULL
+);
+
 CREATE TABLE IF NOT EXISTS property (
   id TEXT PRIMARY KEY,
   account_id TEXT NOT NULL REFERENCES account(id),
   address TEXT NOT NULL,
   jurisdiction TEXT NOT NULL CHECK (jurisdiction IN ('NV','AZ','TX')),
+  owner_entity_id TEXT REFERENCES owner_entity(id),
   created_at INTEGER NOT NULL
 );
 

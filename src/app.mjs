@@ -137,17 +137,41 @@ export function buildApp(db) {
   });
   add('GET', '/api/packages', () => ok(db.prepare('SELECT code,label,price_cents,inspections_count FROM package').all()));
 
+  add('GET', '/api/entities', (c) => {
+    const acc = account(c.headers); if (!acc) return err(401, 'E_AUTH', 'owner session required');
+    return ok(db.prepare('SELECT id,name,entity_type FROM owner_entity WHERE account_id=? ORDER BY created_at').all(acc.id));
+  });
+  add('POST', '/api/entities', (c) => {
+    const acc = account(c.headers); if (!acc) return err(401, 'E_AUTH', 'owner session required');
+    const name = (c.body.name || '').trim();
+    if (!name) return err(400, 'E_VALIDATION', 'owner name is required');
+    const id = uuid();
+    try {
+      db.prepare('INSERT INTO owner_entity(id,account_id,name,entity_type,created_at) VALUES(?,?,?,?,?)')
+        .run(id, acc.id, name, c.body.entity_type || null, now(db));
+    } catch (e) { return err(400, 'E_ENTITY_INVALID', e.message); }
+    audit(db, null, 'entity_created', { entity_id: id });
+    return ok({ id, name, entity_type: c.body.entity_type || null });
+  });
   add('POST', '/api/properties', (c) => {
     const acc = account(c.headers); if (!acc) return err(401, 'E_AUTH', 'owner session required');
-    const { address, jurisdiction } = c.body;
+    const { address, jurisdiction, owner_entity_id } = c.body;
     if (!['NV', 'AZ', 'TX'].includes(jurisdiction)) return err(400, 'E_JURISDICTION', 'jurisdiction must be NV, AZ, or TX');
+    let ent = null;
+    if (owner_entity_id) {
+      ent = db.prepare('SELECT * FROM owner_entity WHERE id=? AND account_id=?').get(owner_entity_id, acc.id);
+      if (!ent) return err(403, 'E_AUTH', 'not your owner entity');
+    }
     const id = uuid();
-    db.prepare('INSERT INTO property(id,account_id,address,jurisdiction,created_at) VALUES(?,?,?,?,?)').run(id, acc.id, address, jurisdiction, now(db));
-    return ok({ id, address, jurisdiction });
+    db.prepare('INSERT INTO property(id,account_id,address,jurisdiction,owner_entity_id,created_at) VALUES(?,?,?,?,?,?)')
+      .run(id, acc.id, address, jurisdiction, ent ? ent.id : null, now(db));
+    return ok({ id, address, jurisdiction, owner_entity_id: ent ? ent.id : null, owner_entity_name: ent ? ent.name : null });
   });
   add('GET', '/api/properties', (c) => {
     const acc = account(c.headers); if (!acc) return err(401, 'E_AUTH', 'owner session required');
-    return ok(db.prepare('SELECT id,address,jurisdiction FROM property WHERE account_id=?').all(acc.id));
+    return ok(db.prepare(`SELECT p.id,p.address,p.jurisdiction,p.owner_entity_id,e.name AS owner_entity_name
+      FROM property p LEFT JOIN owner_entity e ON e.id=p.owner_entity_id
+      WHERE p.account_id=? ORDER BY p.created_at`).all(acc.id));
   });
   add('POST', '/api/properties/:id/tenants', (c) => {
     const acc = account(c.headers); const prop = ownedProperty(acc, c.params.id);
@@ -303,12 +327,13 @@ export function buildApp(db) {
   add('GET', '/api/properties/:id/file', (c) => {
     const acc = account(c.headers); const prop = ownedProperty(acc, c.params.id);
     if (!prop) return err(403, 'E_AUTH', 'not your property');
-    const matters = db.prepare('SELECT id,status,created_at,submitted_at FROM inspection_matter WHERE property_id=?').all(prop.id);
+    const matters = db.prepare('SELECT id,status,token,deadline_at,created_at,submitted_at FROM inspection_matter WHERE property_id=? ORDER BY created_at DESC').all(prop.id);
     const documents = db.prepare('SELECT id,kind,created_at FROM document WHERE property_id=?').all(prop.id);
     const disputes = db.prepare('SELECT id,source_type,active FROM active_dispute_signal WHERE property_id=?').all(prop.id);
     const auditTrail = db.prepare(`SELECT a.type,a.detail,a.created_at FROM audit_event a
       JOIN inspection_matter m ON m.id=a.matter_id WHERE m.property_id=? ORDER BY a.created_at`).all(prop.id);
-    return ok({ property: { id: prop.id, address: prop.address, jurisdiction: prop.jurisdiction }, matters, documents, disputes, audit: auditTrail });
+    const ent = prop.owner_entity_id ? db.prepare('SELECT name,entity_type FROM owner_entity WHERE id=?').get(prop.owner_entity_id) : null;
+    return ok({ property: { id: prop.id, address: prop.address, jurisdiction: prop.jurisdiction, owner_entity_name: ent ? ent.name : null, owner_entity_type: ent ? ent.entity_type : null }, matters, documents, disputes, audit: auditTrail });
   });
   add('POST', '/api/matters/:id/export', (c) => {
     const acc = account(c.headers); const m = ownedMatter(acc, c.params.id);
