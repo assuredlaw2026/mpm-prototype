@@ -46,3 +46,11 @@ Render redeploys automatically on each change. Refresh the site to see it.
   routes). The password protects them today, but they must be gone before real users.
 - Decide data retention, privacy, and the counsel gates (TCPA, state notice content, retention/EXIF,
   referral monetization, defensible-file copy) before any real tenant data or live channel.
+- Availability labels ("Coming soon") were removed from the Deposit Disposition and Default
+  Letters cards and pages for team testing. Before the password comes off: either those services
+  are live and purchasable at the advertised floor prices, or availability labeling returns.
+- Each service workflow must open with a short plain-English disclosure of MPM's role and limits
+  (not a law firm, no legal advice, owner authors and approves, tenant-submitted inspection media)
+  that the customer affirmatively acknowledges, with the acknowledgment recorded to the property
+  record before the workflow proceeds. Model it on the existing attestation pattern. Disclosure
+  copy requires counsel review before launch.
