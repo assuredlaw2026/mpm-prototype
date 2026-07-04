@@ -1,0 +1,13 @@
+{
+  "name": "mpm-prototype",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "description": "MyPropertyManager.com inspection-first prototype. Phases 1-3 with real backend and database-level compliance enforcement. Phase 4 (live SMS/notice/mailing) is gated and refuses until counsel clears it.",
+  "engines": { "node": ">=22.5.0" },
+  "scripts": {
+    "start": "node --experimental-sqlite src/server.mjs",
+    "fresh": "node -e \"require('node:fs').rmSync('mpm.db',{force:true})\" && node --experimental-sqlite src/server.mjs",
+    "test": "node --experimental-sqlite --test test/bypass.test.mjs"
+  }
+}
